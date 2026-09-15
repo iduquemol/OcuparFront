@@ -1,8 +1,10 @@
+# bank-statement-import Specification
+
 ## Purpose
 
 Lets a user import a bank statement by selecting a bank and account, a statement date range, and a CSV flat file, then view the processed statement rows in a table.
 
-## ADDED Requirements
+## Requirements
 
 ### Requirement: Bank selection
 The form SHALL display a bank selector control populated with the list of banks returned by the banks API. The control SHALL show a loading state while the request is in flight and an error state if the request fails.

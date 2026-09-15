@@ -1,8 +1,10 @@
+# bank-api-client Specification
+
 ## Purpose
 
 Provides a frontend HTTP client layer that other features use to list banks, list accounts for a bank, and submit a bank statement file for processing, against a configurable API base URL.
 
-## ADDED Requirements
+## Requirements
 
 ### Requirement: Configurable API base URL
 The client SHALL resolve the API base URL from application configuration (an environment variable) rather than hard-coding it, so the target API can change per environment without code changes.
