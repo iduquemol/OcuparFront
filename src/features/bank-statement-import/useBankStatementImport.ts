@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from "react"
 import { getAccountsByBank, getBanks } from "@/api/banks"
-import { submitStatement } from "@/api/statements"
-import type { Bank, BankAccount, StatementRow } from "@/api/types"
+import { submitCajaSocialExtracto } from "@/api/extractos"
+import type { Bank, BankAccount } from "@/api/types"
+import { hasParser, parseStatementCsv } from "@/statement-parsing/registry"
 
 const CSV_EXTENSION = /\.csv$/i
 
@@ -33,7 +34,7 @@ export function useBankStatementImport() {
   const [form, setForm] = useState<FormState>(initialFormState)
   const [fileError, setFileError] = useState<string | null>(null)
 
-  const [rows, setRows] = useState<StatementRow[] | null>(null)
+  const [idExtracto, setIdExtracto] = useState<number | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
 
@@ -124,6 +125,8 @@ export function useBankStatementImport() {
       ? "La fecha final no puede ser anterior a la fecha inicial"
       : null
 
+  const bankUnsupported = !!form.bankId && !hasParser(form.bankId)
+
   const isFormComplete =
     !!form.bankId &&
     !!form.accountId &&
@@ -131,24 +134,32 @@ export function useBankStatementImport() {
     !!form.endDate &&
     !!form.file &&
     !dateRangeError &&
-    !fileError
+    !fileError &&
+    !bankUnsupported
 
   const submit = useCallback(async () => {
     if (!isFormComplete || !form.bankId || !form.accountId || !form.startDate || !form.endDate || !form.file) {
       return
     }
 
+    if (!hasParser(form.bankId)) {
+      setSubmitError(`El banco "${form.bankId}" aún no está soportado`)
+      return
+    }
+
     setSubmitting(true)
     setSubmitError(null)
+    setIdExtracto(null)
     try {
-      const result = await submitStatement({
-        bankId: form.bankId,
-        accountId: form.accountId,
+      const extracto = await parseStatementCsv({
+        bankCode: form.bankId,
+        accountCode: form.accountId,
         startDate: form.startDate,
         endDate: form.endDate,
         file: form.file,
       })
-      setRows(result)
+      const result = await submitCajaSocialExtracto(extracto)
+      setIdExtracto(result.idExtracto)
     } catch (error) {
       setSubmitError(
         error instanceof Error ? error.message : "No se pudo procesar el extracto"
@@ -168,8 +179,9 @@ export function useBankStatementImport() {
     form,
     fileError,
     dateRangeError,
+    bankUnsupported,
     isFormComplete,
-    rows,
+    idExtracto,
     submitting,
     submitError,
     selectBank,

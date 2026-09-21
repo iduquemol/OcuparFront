@@ -15,7 +15,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { StatementResultsTable } from "./StatementResultsTable"
 import { useBankStatementImport } from "./useBankStatementImport"
 
 export function BankStatementImportForm() {
@@ -29,8 +28,9 @@ export function BankStatementImportForm() {
     form,
     fileError,
     dateRangeError,
+    bankUnsupported,
     isFormComplete,
-    rows,
+    idExtracto,
     submitting,
     submitError,
     selectBank,
@@ -80,6 +80,11 @@ export function BankStatementImportForm() {
                     </SelectContent>
                   </Select>
                   <FieldError>{banksError}</FieldError>
+                  {bankUnsupported && (
+                    <FieldError>
+                      El banco "{form.bankId}" aún no está soportado para procesar extractos.
+                    </FieldError>
+                  )}
                 </Field>
 
                 <Field>
@@ -156,12 +161,15 @@ export function BankStatementImportForm() {
               </div>
 
               <FieldError>{submitError}</FieldError>
+              {idExtracto !== null && (
+                <p className="text-sm text-primary">
+                  Extracto cargado correctamente. ID: {idExtracto}
+                </p>
+              )}
             </FieldGroup>
           </form>
         </CardContent>
       </Card>
-
-      <StatementResultsTable rows={rows} />
     </div>
   )
 }

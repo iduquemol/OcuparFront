@@ -45,3 +45,11 @@ export function postForm<T>(path: string, formData: FormData): Promise<T> {
     body: formData,
   })
 }
+
+export function postJson<T>(path: string, body: unknown): Promise<T> {
+  return request<T>(path, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  })
+}
