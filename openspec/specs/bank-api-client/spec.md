@@ -35,13 +35,13 @@ The client SHALL expose a function to retrieve the list of accounts for a given 
 - **WHEN** the underlying HTTP request fails or the API returns a non-success status
 - **THEN** the function surfaces an error that the caller can distinguish from a successful empty list
 
-### Requirement: Submit statement for processing
-The client SHALL expose a function to submit a bank identifier, an account identifier, a start date, an end date, and a CSV file to an API endpoint that processes the statement and returns the processed rows.
+### Requirement: Submit Caja Social extract for loading
+The client SHALL expose a function to submit a Caja Social (bank `32`) extract JSON document to an API endpoint that loads it and returns the generated extract identifier.
 
 #### Scenario: Successful submission
-- **WHEN** the submit-statement function is called with valid bank, account, date range, and file
-- **THEN** it sends them to the API and returns the processed rows from the response
+- **WHEN** the submit-Caja-Social-extract function is called with a valid extract JSON document
+- **THEN** it sends the document to the API and returns the generated extract identifier from the response
 
 #### Scenario: Submission failure
-- **WHEN** the API returns a non-success status while processing the statement
+- **WHEN** the API returns a non-success status while loading the extract
 - **THEN** the function surfaces an error that the caller can use to show a failure message

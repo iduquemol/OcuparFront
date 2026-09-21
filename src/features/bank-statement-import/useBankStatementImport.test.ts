@@ -2,10 +2,23 @@ import { act, renderHook, waitFor } from "@testing-library/react"
 import { describe, expect, it, vi, beforeEach } from "vitest"
 import { useBankStatementImport } from "./useBankStatementImport"
 import * as banksApi from "@/api/banks"
-import * as statementsApi from "@/api/statements"
+import * as extractosApi from "@/api/extractos"
+import * as registry from "@/statement-parsing/registry"
+import type { CajaSocialExtracto } from "@/statement-parsing/types"
 
 function makeCsvFile(name = "statement.csv") {
   return new File(["date,amount\n2024-01-01,100"], name, { type: "text/csv" })
+}
+
+function makeExtracto(): CajaSocialExtracto {
+  return {
+    idExtracto: null,
+    codigoBanco: "32",
+    codigoCuenta: "a1",
+    fechaInicial: "2024-01-01",
+    fechaFinal: "2024-01-31",
+    cajaSocial: [],
+  }
 }
 
 describe("useBankStatementImport", () => {
@@ -89,9 +102,9 @@ describe("useBankStatementImport", () => {
   })
 
   it("enables submission only once bank, account, dates and file are all valid", async () => {
-    vi.spyOn(banksApi, "getBanks").mockResolvedValue([{ id: "b1", name: "Bank One" }])
+    vi.spyOn(banksApi, "getBanks").mockResolvedValue([{ id: "32", name: "Caja Social" }])
     vi.spyOn(banksApi, "getAccountsByBank").mockResolvedValue([
-      { id: "a1", bankId: "b1", name: "Checking", accountNumber: "1" },
+      { id: "a1", bankId: "32", name: "Checking", accountNumber: "1" },
     ])
 
     const { result } = renderHook(() => useBankStatementImport())
@@ -99,7 +112,7 @@ describe("useBankStatementImport", () => {
 
     expect(result.current.isFormComplete).toBe(false)
 
-    act(() => result.current.selectBank("b1"))
+    act(() => result.current.selectBank("32"))
     await waitFor(() => expect(result.current.accountsLoading).toBe(false))
     act(() => result.current.selectAccount("a1"))
     act(() => {
@@ -111,17 +124,11 @@ describe("useBankStatementImport", () => {
     expect(result.current.isFormComplete).toBe(true)
   })
 
-  it("submit sends the form data and stores the returned rows", async () => {
+  it("blocks submission when the selected bank has no registered parser", async () => {
     vi.spyOn(banksApi, "getBanks").mockResolvedValue([{ id: "b1", name: "Bank One" }])
     vi.spyOn(banksApi, "getAccountsByBank").mockResolvedValue([
       { id: "a1", bankId: "b1", name: "Checking", accountNumber: "1" },
     ])
-    const rows = [
-      { date: "2024-01-01", description: "Deposit", amount: 100, balance: 100 },
-    ]
-    const submitStatementMock = vi
-      .spyOn(statementsApi, "submitStatement")
-      .mockResolvedValue(rows)
 
     const { result } = renderHook(() => useBankStatementImport())
     await waitFor(() => expect(result.current.banksLoading).toBe(false))
@@ -135,30 +142,68 @@ describe("useBankStatementImport", () => {
       result.current.selectFile(makeCsvFile())
     })
 
+    expect(result.current.bankUnsupported).toBe(true)
+    expect(result.current.isFormComplete).toBe(false)
+
     await act(async () => {
       await result.current.submit()
     })
 
-    expect(submitStatementMock).toHaveBeenCalledWith(
-      expect.objectContaining({ bankId: "b1", accountId: "a1" })
+    expect(result.current.idExtracto).toBeNull()
+  })
+
+  it("submit parses the CSV, sends the extracto, and stores the returned idExtracto", async () => {
+    vi.spyOn(banksApi, "getBanks").mockResolvedValue([{ id: "32", name: "Caja Social" }])
+    vi.spyOn(banksApi, "getAccountsByBank").mockResolvedValue([
+      { id: "a1", bankId: "32", name: "Checking", accountNumber: "1" },
+    ])
+    const extracto = makeExtracto()
+    const parseStatementCsvMock = vi
+      .spyOn(registry, "parseStatementCsv")
+      .mockResolvedValue(extracto)
+    const submitMock = vi
+      .spyOn(extractosApi, "submitCajaSocialExtracto")
+      .mockResolvedValue({ idExtracto: 56 })
+
+    const { result } = renderHook(() => useBankStatementImport())
+    await waitFor(() => expect(result.current.banksLoading).toBe(false))
+
+    act(() => result.current.selectBank("32"))
+    await waitFor(() => expect(result.current.accountsLoading).toBe(false))
+    const file = makeCsvFile()
+    act(() => {
+      result.current.selectAccount("a1")
+      result.current.setStartDate(new Date("2024-01-01"))
+      result.current.setEndDate(new Date("2024-01-31"))
+      result.current.selectFile(file)
+    })
+
+    await act(async () => {
+      await result.current.submit()
+    })
+
+    expect(parseStatementCsvMock).toHaveBeenCalledWith(
+      expect.objectContaining({ bankCode: "32", accountCode: "a1", file })
     )
-    expect(result.current.rows).toEqual(rows)
+    expect(submitMock).toHaveBeenCalledWith(extracto)
+    expect(result.current.idExtracto).toBe(56)
     expect(result.current.submitError).toBeNull()
   })
 
-  it("submit surfaces an error and leaves rows unset on failure", async () => {
-    vi.spyOn(banksApi, "getBanks").mockResolvedValue([{ id: "b1", name: "Bank One" }])
+  it("submit surfaces an error and leaves idExtracto unset on failure", async () => {
+    vi.spyOn(banksApi, "getBanks").mockResolvedValue([{ id: "32", name: "Caja Social" }])
     vi.spyOn(banksApi, "getAccountsByBank").mockResolvedValue([
-      { id: "a1", bankId: "b1", name: "Checking", accountNumber: "1" },
+      { id: "a1", bankId: "32", name: "Checking", accountNumber: "1" },
     ])
-    vi.spyOn(statementsApi, "submitStatement").mockRejectedValue(
+    vi.spyOn(registry, "parseStatementCsv").mockResolvedValue(makeExtracto())
+    vi.spyOn(extractosApi, "submitCajaSocialExtracto").mockRejectedValue(
       new Error("processing failed")
     )
 
     const { result } = renderHook(() => useBankStatementImport())
     await waitFor(() => expect(result.current.banksLoading).toBe(false))
 
-    act(() => result.current.selectBank("b1"))
+    act(() => result.current.selectBank("32"))
     await waitFor(() => expect(result.current.accountsLoading).toBe(false))
     act(() => {
       result.current.selectAccount("a1")
@@ -172,6 +217,6 @@ describe("useBankStatementImport", () => {
     })
 
     expect(result.current.submitError).toBe("processing failed")
-    expect(result.current.rows).toBeNull()
+    expect(result.current.idExtracto).toBeNull()
   })
 })

@@ -51,23 +51,30 @@ The form SHALL provide a file picker that accepts a single `.csv` file. Selectin
 - **THEN** the form shows a validation error and does not accept the file
 
 ### Requirement: Form submission requires all fields
-The form SHALL only allow submission when a bank, an account, a valid start date, a valid end date (not before start date), and a CSV file are all provided.
+The form SHALL only allow submission when a bank, an account, a valid start date, a valid end date (not before start date), a CSV file, and a registered CSV parser for the selected bank are all provided.
 
 #### Scenario: Submission blocked when incomplete
 - **WHEN** any of bank, account, start date, end date, or CSV file is missing or invalid
 - **THEN** the submit action is disabled
 
 #### Scenario: Submission allowed when complete
-- **WHEN** bank, account, a valid date range, and a CSV file are all provided
+- **WHEN** bank, account, a valid date range, a CSV file, and a registered parser for the selected bank are all provided
 - **THEN** the submit action is enabled
 
-### Requirement: Processed results table
-Below the form, the system SHALL display a table that shows the statement rows returned after the CSV file is submitted for processing. Before any submission, the table SHALL be empty or show a placeholder state.
+### Requirement: Submission confirmation
+After a successful submission, the system SHALL display a confirmation message that includes the generated extract identifier returned by the API.
 
-#### Scenario: Results appear after successful processing
-- **WHEN** the submitted statement is processed successfully by the API
-- **THEN** the table displays the returned rows
+#### Scenario: Confirmation shown after successful load
+- **WHEN** the submitted extract is loaded successfully by the API
+- **THEN** the form shows a confirmation message including the returned extract identifier
 
-#### Scenario: Processing fails
-- **WHEN** the API returns an error while processing the submitted statement
-- **THEN** the form shows an error message and the table remains empty
+#### Scenario: Loading fails
+- **WHEN** the API returns an error while loading the submitted extract
+- **THEN** the form shows an error message and no confirmation
+
+### Requirement: Unsupported bank blocks submission
+When the selected bank has no registered CSV parser, the system SHALL prevent submission and SHALL show a clear message identifying the bank as unsupported, without attempting any API call.
+
+#### Scenario: Selected bank has no parser
+- **WHEN** the user selects a bank for which no CSV parser is registered
+- **THEN** the submit action is disabled or blocked with a message stating that bank is not yet supported, and no API request is made
