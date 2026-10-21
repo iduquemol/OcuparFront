@@ -15,6 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { ExtractoMovementsTable } from "./ExtractoMovementsTable"
 import { useBankStatementImport } from "./useBankStatementImport"
 
 export function BankStatementImportForm() {
@@ -33,6 +34,9 @@ export function BankStatementImportForm() {
     idExtracto,
     submitting,
     submitError,
+    movements,
+    movementsLoading,
+    movementsError,
     selectBank,
     selectAccount,
     setStartDate,
@@ -170,6 +174,14 @@ export function BankStatementImportForm() {
           </form>
         </CardContent>
       </Card>
+
+      {idExtracto !== null && (
+        <ExtractoMovementsTable
+          movements={movements}
+          loading={movementsLoading}
+          error={movementsError}
+        />
+      )}
     </div>
   )
 }

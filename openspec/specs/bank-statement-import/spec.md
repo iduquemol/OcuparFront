@@ -78,3 +78,37 @@ When the selected bank has no registered CSV parser, the system SHALL prevent su
 #### Scenario: Selected bank has no parser
 - **WHEN** the user selects a bank for which no CSV parser is registered
 - **THEN** the submit action is disabled or blocked with a message stating that bank is not yet supported, and no API request is made
+
+### Requirement: Extract movements table
+Once `idExtracto` is obtained from a successful submission, the system SHALL request the extract's movements from the API and display them in a table rendered below the form's controls, spanning the full available width. The table SHALL show, for each movement, the columns `fechaMovimiento`, `descripcionMovimiento`, `detalleMovimiento`, `debito`, `credito`, `nitTercero`, `nombreTercero`, `tipoMovimiento`, `subTipoDocumento`, and `cuentaContable`.
+
+#### Scenario: Movements load after successful submission
+- **WHEN** `idExtracto` is obtained from a successful submission
+- **THEN** the system requests that extract's movements from the API and, once returned, displays them in the table with all 10 specified columns
+
+#### Scenario: Movements fail to load
+- **WHEN** the movements request fails
+- **THEN** the system shows an error message and the table remains empty
+
+#### Scenario: Extract has no movements
+- **WHEN** the movements request succeeds but returns no rows
+- **THEN** the table shows an empty/placeholder state rather than an error
+
+### Requirement: Searchable catalog lookups in movements table columns
+In the extract movements table, the `nitTercero`, `cuentaContable`, and `subTipoDocumento` columns SHALL each render as a searchable combobox backed by its matching catalog (terceros, cuentas contables, subtipos de documento respectively), letting the user filter the catalog incrementally by code or name. Selecting an option SHALL update that row's cell(s) locally, without sending any request to the API. `tipoMovimiento` is not backed by a catalog and SHALL continue to render as plain text.
+
+#### Scenario: Searching filters the catalog incrementally
+- **WHEN** the user types into one of the three comboboxes
+- **THEN** the list of options is filtered, incrementally as they type, to entries whose code or name matches what was typed
+
+#### Scenario: Selecting a tercero updates code and name
+- **WHEN** the user selects an option in a row's `nitTercero` combobox
+- **THEN** that row's `nitTercero` cell is set to the selected option's `codigo` and its `nombreTercero` cell is set to the selected option's `nombre`
+
+#### Scenario: Selecting a cuenta contable updates its cell
+- **WHEN** the user selects an option in a row's `cuentaContable` combobox
+- **THEN** that row's `cuentaContable` cell is set to the selected option's `codigo`
+
+#### Scenario: Selecting a subtipo de documento updates its cell
+- **WHEN** the user selects an option in a row's `subTipoDocumento` combobox
+- **THEN** that row's `subTipoDocumento` cell is set to the selected option's `codigo`
