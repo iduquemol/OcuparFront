@@ -17,6 +17,26 @@ export interface StatementRow {
   balance: number
 }
 
+export interface ExtractoMovement {
+  idRegistroExtracto: number
+  idExtracto: number
+  fechaMovimiento: string
+  descripcionMovimiento: string | null
+  detalleMovimiento: string | null
+  debito: number
+  credito: number
+  nitTercero: string | null
+  nombreTercero: string | null
+  tipoMovimiento: string | null
+  subTipoDocumento: string | null
+  cuentaContable: string | null
+}
+
+export interface CatalogItem {
+  codigo: string
+  nombre: string
+}
+
 export class ApiError extends Error {
   status: number
 

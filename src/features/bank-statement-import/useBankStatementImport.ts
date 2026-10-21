@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react"
 import { getAccountsByBank, getBanks } from "@/api/banks"
-import { submitCajaSocialExtracto } from "@/api/extractos"
-import type { Bank, BankAccount } from "@/api/types"
+import { getExtractoMovements, submitCajaSocialExtracto } from "@/api/extractos"
+import type { Bank, BankAccount, ExtractoMovement } from "@/api/types"
 import { hasParser, parseStatementCsv } from "@/statement-parsing/registry"
 
 const CSV_EXTENSION = /\.csv$/i
@@ -37,6 +37,10 @@ export function useBankStatementImport() {
   const [idExtracto, setIdExtracto] = useState<number | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
+
+  const [movements, setMovements] = useState<ExtractoMovement[] | null>(null)
+  const [movementsLoading, setMovementsLoading] = useState(false)
+  const [movementsError, setMovementsError] = useState<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -150,6 +154,8 @@ export function useBankStatementImport() {
     setSubmitting(true)
     setSubmitError(null)
     setIdExtracto(null)
+    setMovements(null)
+    setMovementsError(null)
     try {
       const extracto = await parseStatementCsv({
         bankCode: form.bankId,
@@ -160,6 +166,20 @@ export function useBankStatementImport() {
       })
       const result = await submitCajaSocialExtracto(extracto)
       setIdExtracto(result.idExtracto)
+
+      setMovementsLoading(true)
+      try {
+        const movementsResult = await getExtractoMovements(result.idExtracto)
+        setMovements(movementsResult)
+      } catch (movementsErr) {
+        setMovementsError(
+          movementsErr instanceof Error
+            ? movementsErr.message
+            : "No se pudieron cargar los movimientos"
+        )
+      } finally {
+        setMovementsLoading(false)
+      }
     } catch (error) {
       setSubmitError(
         error instanceof Error ? error.message : "No se pudo procesar el extracto"
@@ -184,6 +204,9 @@ export function useBankStatementImport() {
     idExtracto,
     submitting,
     submitError,
+    movements,
+    movementsLoading,
+    movementsError,
     selectBank,
     selectAccount,
     setStartDate,

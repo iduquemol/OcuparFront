@@ -5,6 +5,7 @@ import * as banksApi from "@/api/banks"
 import * as extractosApi from "@/api/extractos"
 import * as registry from "@/statement-parsing/registry"
 import type { CajaSocialExtracto } from "@/statement-parsing/types"
+import type { ExtractoMovement } from "@/api/types"
 
 function makeCsvFile(name = "statement.csv") {
   return new File(["date,amount\n2024-01-01,100"], name, { type: "text/csv" })
@@ -152,7 +153,7 @@ describe("useBankStatementImport", () => {
     expect(result.current.idExtracto).toBeNull()
   })
 
-  it("submit parses the CSV, sends the extracto, and stores the returned idExtracto", async () => {
+  it("submit parses the CSV, sends the extracto, stores idExtracto, and loads its movements", async () => {
     vi.spyOn(banksApi, "getBanks").mockResolvedValue([{ id: "32", name: "Caja Social" }])
     vi.spyOn(banksApi, "getAccountsByBank").mockResolvedValue([
       { id: "a1", bankId: "32", name: "Checking", accountNumber: "1" },
@@ -164,6 +165,25 @@ describe("useBankStatementImport", () => {
     const submitMock = vi
       .spyOn(extractosApi, "submitCajaSocialExtracto")
       .mockResolvedValue({ idExtracto: 56 })
+    const movements: ExtractoMovement[] = [
+      {
+        idRegistroExtracto: 444,
+        idExtracto: 56,
+        fechaMovimiento: "2026-08-03",
+        descripcionMovimiento: "COMPRA INTERNET",
+        detalleMovimiento: null,
+        debito: 25240200,
+        credito: 0,
+        nitTercero: "0",
+        nombreTercero: null,
+        tipoMovimiento: "N227",
+        subTipoDocumento: null,
+        cuentaContable: null,
+      },
+    ]
+    const getMovementsMock = vi
+      .spyOn(extractosApi, "getExtractoMovements")
+      .mockResolvedValue(movements)
 
     const { result } = renderHook(() => useBankStatementImport())
     await waitFor(() => expect(result.current.banksLoading).toBe(false))
@@ -188,6 +208,42 @@ describe("useBankStatementImport", () => {
     expect(submitMock).toHaveBeenCalledWith(extracto)
     expect(result.current.idExtracto).toBe(56)
     expect(result.current.submitError).toBeNull()
+    expect(getMovementsMock).toHaveBeenCalledWith(56)
+    expect(result.current.movements).toEqual(movements)
+    expect(result.current.movementsError).toBeNull()
+  })
+
+  it("keeps idExtracto and surfaces movementsError when the movements fetch fails", async () => {
+    vi.spyOn(banksApi, "getBanks").mockResolvedValue([{ id: "32", name: "Caja Social" }])
+    vi.spyOn(banksApi, "getAccountsByBank").mockResolvedValue([
+      { id: "a1", bankId: "32", name: "Checking", accountNumber: "1" },
+    ])
+    vi.spyOn(registry, "parseStatementCsv").mockResolvedValue(makeExtracto())
+    vi.spyOn(extractosApi, "submitCajaSocialExtracto").mockResolvedValue({ idExtracto: 56 })
+    vi.spyOn(extractosApi, "getExtractoMovements").mockRejectedValue(
+      new Error("movements failed")
+    )
+
+    const { result } = renderHook(() => useBankStatementImport())
+    await waitFor(() => expect(result.current.banksLoading).toBe(false))
+
+    act(() => result.current.selectBank("32"))
+    await waitFor(() => expect(result.current.accountsLoading).toBe(false))
+    act(() => {
+      result.current.selectAccount("a1")
+      result.current.setStartDate(new Date("2024-01-01"))
+      result.current.setEndDate(new Date("2024-01-31"))
+      result.current.selectFile(makeCsvFile())
+    })
+
+    await act(async () => {
+      await result.current.submit()
+    })
+
+    expect(result.current.idExtracto).toBe(56)
+    expect(result.current.submitError).toBeNull()
+    expect(result.current.movementsError).toBe("movements failed")
+    expect(result.current.movements).toBeNull()
   })
 
   it("submit surfaces an error and leaves idExtracto unset on failure", async () => {

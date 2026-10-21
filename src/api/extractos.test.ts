@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
-import { submitCajaSocialExtracto } from "./extractos"
+import { getExtractoMovements, submitCajaSocialExtracto } from "./extractos"
 import { ApiError } from "./types"
+import type { ExtractoMovement } from "./types"
 import type { CajaSocialExtracto } from "@/statement-parsing/types"
 
 function makeExtracto(): CajaSocialExtracto {
@@ -61,5 +62,53 @@ describe("submitCajaSocialExtracto", () => {
     )
 
     await expect(submitCajaSocialExtracto(makeExtracto())).rejects.toBeInstanceOf(ApiError)
+  })
+})
+
+describe("getExtractoMovements", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it("fetches and returns the movements for the given idExtracto", async () => {
+    const movements: ExtractoMovement[] = [
+      {
+        idRegistroExtracto: 444,
+        idExtracto: 72,
+        fechaMovimiento: "2026-08-03",
+        descripcionMovimiento: "COMPRA INTERNET",
+        detalleMovimiento: null,
+        debito: 25240200,
+        credito: 0,
+        nitTercero: "0",
+        nombreTercero: null,
+        tipoMovimiento: "N227",
+        subTipoDocumento: null,
+        cuentaContable: null,
+      },
+    ]
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(new Response(JSON.stringify(movements), { status: 200 }))
+    vi.stubGlobal("fetch", fetchMock)
+
+    const result = await getExtractoMovements(72)
+
+    expect(result).toEqual(movements)
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining("/extractos/72"),
+      undefined
+    )
+  })
+
+  it("surfaces an ApiError when the request fails", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(JSON.stringify({ message: "not found" }), { status: 404 })
+      )
+    )
+
+    await expect(getExtractoMovements(999)).rejects.toBeInstanceOf(ApiError)
   })
 })
