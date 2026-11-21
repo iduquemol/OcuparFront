@@ -25,7 +25,7 @@ function mockCatalogos() {
     { codigo: "800186061", nombre: "MOVISTAR" },
   ])
   vi.spyOn(catalogosApi, "getCuentasContables").mockResolvedValue([
-    { codigo: "00", nombre: "NO APLICA" },
+    { codigo: "00", nombre: "NO APLICA", tipo: "" },
   ])
   vi.spyOn(catalogosApi, "getSubTiposDocumento").mockResolvedValue([
     { codigo: "040", nombre: "COMPROBANTE DE INGRESO CxC" },
@@ -37,7 +37,7 @@ describe("ExtractoMovementsTable", () => {
     vi.restoreAllMocks()
   })
 
-  it("renders all 10 columns for a movement", async () => {
+  it("renders all 7 data columns plus the actions column for a movement", async () => {
     mockCatalogos()
 
     render(
@@ -46,13 +46,56 @@ describe("ExtractoMovementsTable", () => {
 
     expect(screen.getByText("2026-08-03")).toBeInTheDocument()
     expect(screen.getByText("COMPRA INTERNET")).toBeInTheDocument()
-    expect(screen.getByText("25240200")).toBeInTheDocument()
-    expect(screen.getByText("N227")).toBeInTheDocument()
+    // debito/credito render as formatted currency
+    expect(screen.getByText("$ 25.240.200,00")).toBeInTheDocument()
+    expect(screen.getByText("$ 0,00")).toBeInTheDocument()
+    expect(screen.queryByText("N227")).not.toBeInTheDocument() // tipoMovimiento column removed
     // nitTercero (no catalog match for "0") renders the raw value in its combobox trigger,
     // once the (mocked) catalog finishes loading
     expect(await screen.findByRole("button", { name: "0" })).toBeInTheDocument()
-    // nombreTercero and detalleMovimiento render as plain "-"
-    expect(screen.getAllByText("-").length).toBeGreaterThanOrEqual(2)
+    // nombreTercero renders as plain "-"
+    expect(screen.getAllByText("-").length).toBeGreaterThanOrEqual(1)
+    expect(
+      screen.getByRole("button", { name: "Seleccionar Facturas" })
+    ).toBeInTheDocument()
+  })
+
+  it("renders Seleccionar Facturas between Nombre Tercero and Subtipo Documento, in document order", async () => {
+    mockCatalogos()
+
+    render(
+      <ExtractoMovementsTable movements={[sampleMovement]} loading={false} error={null} />
+    )
+
+    const headers = screen.getAllByRole("columnheader").map((h) => h.textContent)
+    expect(headers).toEqual([
+      "Fecha",
+      "Descripción",
+      "Débito",
+      "Crédito",
+      "NIT Tercero",
+      "Nombre Tercero",
+      "",
+      "Subtipo Documento",
+      "Cuenta Contable",
+    ])
+  })
+
+  it("enables Seleccionar Facturas only when the row has a nitTercero", async () => {
+    mockCatalogos()
+
+    render(
+      <ExtractoMovementsTable
+        movements={[sampleMovement, { ...sampleMovement, idRegistroExtracto: 445, nitTercero: null }]}
+        loading={false}
+        error={null}
+      />
+    )
+
+    const buttons = await screen.findAllByRole("button", { name: "Seleccionar Facturas" })
+    expect(buttons).toHaveLength(2)
+    expect(buttons[0]).toBeEnabled()
+    expect(buttons[1]).toBeDisabled()
   })
 
   it("shows a placeholder when there are no movements", async () => {
@@ -92,9 +135,8 @@ describe("ExtractoMovementsTable", () => {
     await user.click(nitButton)
     await user.click(await screen.findByText(/MOVISTAR/))
 
-    expect(
-      await screen.findByRole("button", { name: "800186061 — MOVISTAR" })
-    ).toBeInTheDocument()
+    // nitTercero's trigger shows only the code, not the name
+    expect(await screen.findByRole("button", { name: "800186061" })).toBeInTheDocument()
     expect(screen.getByText("MOVISTAR")).toBeInTheDocument()
   })
 
@@ -128,9 +170,7 @@ describe("ExtractoMovementsTable", () => {
     const nitButton = await screen.findByRole("button", { name: "0" })
     await user.click(nitButton)
     await user.click(await screen.findByText(/MOVISTAR/))
-    expect(
-      await screen.findByRole("button", { name: "800186061 — MOVISTAR" })
-    ).toBeInTheDocument()
+    expect(await screen.findByRole("button", { name: "800186061" })).toBeInTheDocument()
 
     rerender(
       <ExtractoMovementsTable movements={[{ ...sampleMovement }]} loading={false} error={null} />

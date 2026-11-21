@@ -80,11 +80,11 @@ When the selected bank has no registered CSV parser, the system SHALL prevent su
 - **THEN** the submit action is disabled or blocked with a message stating that bank is not yet supported, and no API request is made
 
 ### Requirement: Extract movements table
-Once `idExtracto` is obtained from a successful submission, the system SHALL request the extract's movements from the API and display them in a table rendered below the form's controls, spanning the full available width. The table SHALL show, for each movement, the columns `fechaMovimiento`, `descripcionMovimiento`, `detalleMovimiento`, `debito`, `credito`, `nitTercero`, `nombreTercero`, `tipoMovimiento`, `subTipoDocumento`, and `cuentaContable`.
+Once `idExtracto` is obtained from a successful submission, the system SHALL request the extract's movements from the API and display them in a table rendered below the form's controls, spanning the full available width. The table SHALL show, for each movement, the columns `fechaMovimiento`, `descripcionMovimiento`, `debito`, `credito`, `nitTercero`, `nombreTercero`, an actions column containing a "Seleccionar Facturas" icon button, `subTipoDocumento`, and `cuentaContable`, in that order. `debito` and `credito` SHALL be formatted as currency (thousands/decimal separators and a `$` sign).
 
 #### Scenario: Movements load after successful submission
 - **WHEN** `idExtracto` is obtained from a successful submission
-- **THEN** the system requests that extract's movements from the API and, once returned, displays them in the table with all 10 specified columns
+- **THEN** the system requests that extract's movements from the API and, once returned, displays them in the table with all 7 data columns plus the actions column, in the documented order
 
 #### Scenario: Movements fail to load
 - **WHEN** the movements request fails
@@ -94,8 +94,20 @@ Once `idExtracto` is obtained from a successful submission, the system SHALL req
 - **WHEN** the movements request succeeds but returns no rows
 - **THEN** the table shows an empty/placeholder state rather than an error
 
+#### Scenario: Seleccionar Facturas is disabled without a tercero
+- **WHEN** a movement row's `nitTercero` is null or empty
+- **THEN** that row's "Seleccionar Facturas" button is disabled
+
+#### Scenario: Débito and Crédito are formatted as currency
+- **WHEN** a movement's `debito` or `credito` is displayed
+- **THEN** it shows a `$` sign and the value with thousands and decimal separators (e.g. `$ 1.000,00`)
+
+#### Scenario: Seleccionar Facturas renders as an icon button with a tooltip
+- **WHEN** a movement row is displayed
+- **THEN** its "Seleccionar Facturas" action renders as an icon-only button, with no visible text, that uses a prominent background color and shows a tooltip reading "Seleccionar Facturas" on hover/focus
+
 ### Requirement: Searchable catalog lookups in movements table columns
-In the extract movements table, the `nitTercero`, `cuentaContable`, and `subTipoDocumento` columns SHALL each render as a searchable combobox backed by its matching catalog (terceros, cuentas contables, subtipos de documento respectively), letting the user filter the catalog incrementally by code or name. Selecting an option SHALL update that row's cell(s) locally, without sending any request to the API. `tipoMovimiento` is not backed by a catalog and SHALL continue to render as plain text.
+In the extract movements table, the `nitTercero`, `cuentaContable`, and `subTipoDocumento` columns SHALL each render as a searchable combobox backed by its matching catalog (terceros, cuentas contables, subtipos de documento respectively), letting the user filter the catalog incrementally by code or name. Selecting an option SHALL update that row's cell(s) locally, without sending any request to the API. The `nitTercero` combobox's trigger SHALL show only the selected option's `codigo`; the `cuentaContable` and `subTipoDocumento` comboboxes' triggers SHALL continue to show `codigo — nombre`.
 
 #### Scenario: Searching filters the catalog incrementally
 - **WHEN** the user types into one of the three comboboxes
@@ -112,3 +124,22 @@ In the extract movements table, the `nitTercero`, `cuentaContable`, and `subTipo
 #### Scenario: Selecting a subtipo de documento updates its cell
 - **WHEN** the user selects an option in a row's `subTipoDocumento` combobox
 - **THEN** that row's `subTipoDocumento` cell is set to the selected option's `codigo`
+
+#### Scenario: NIT Tercero trigger shows only the code
+- **WHEN** a `nitTercero` combobox has a selected value
+- **THEN** its trigger shows only the `codigo`, not the `nombre`
+
+#### Scenario: Other combobox triggers still show code and name
+- **WHEN** a `cuentaContable` or `subTipoDocumento` combobox has a selected value
+- **THEN** its trigger shows `codigo — nombre`
+
+### Requirement: Form page layout
+The page SHALL use narrower left/right margins than before, giving the central column of controls more width, and SHALL render the form's text one size step smaller than before.
+
+#### Scenario: Central content is wider
+- **WHEN** the page is rendered
+- **THEN** the central content area is wider and the side margins are narrower than they were previously
+
+#### Scenario: Text is one size step smaller
+- **WHEN** the page is rendered
+- **THEN** the form's text renders one size step smaller than it did previously
