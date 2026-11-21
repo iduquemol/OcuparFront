@@ -18,6 +18,8 @@ interface CatalogComboboxProps {
   value: string | null
   onSelect: (item: CatalogItem) => void
   placeholder?: string
+  triggerDisplay?: "codeAndName" | "code"
+  disabled?: boolean
 }
 
 export function CatalogCombobox({
@@ -26,6 +28,8 @@ export function CatalogCombobox({
   value,
   onSelect,
   placeholder = "Seleccionar...",
+  triggerDisplay = "codeAndName",
+  disabled = false,
 }: CatalogComboboxProps) {
   const [open, setOpen] = useState(false)
 
@@ -33,7 +37,9 @@ export function CatalogCombobox({
   const label = loading
     ? "Cargando..."
     : selected
-      ? `${selected.codigo} — ${selected.nombre}`
+      ? triggerDisplay === "code"
+        ? selected.codigo
+        : `${selected.codigo} — ${selected.nombre}`
       : (value ?? placeholder)
 
   return (
@@ -43,7 +49,7 @@ export function CatalogCombobox({
           <Button
             type="button"
             variant="outline"
-            disabled={loading}
+            disabled={loading || disabled}
             className={cn(
               "w-full min-w-40 justify-start truncate text-left font-normal",
               !selected && !value && "text-muted-foreground"

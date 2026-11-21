@@ -8,9 +8,19 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import { Button } from "@/components/ui/button"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
+import { Receipt } from "lucide-react"
 import type { ExtractoMovement } from "@/api/types"
 import { CatalogCombobox } from "./CatalogCombobox"
 import { useCatalogos } from "./useCatalogos"
+import { CarteraSelectionForm } from "./CarteraSelectionForm"
+import { formatCurrency } from "@/lib/currency"
 
 interface ExtractoMovementsTableProps {
   movements: ExtractoMovement[] | null
@@ -18,7 +28,7 @@ interface ExtractoMovementsTableProps {
   error: string | null
 }
 
-const COLUMN_COUNT = 10
+const COLUMN_COUNT = 9
 
 export function ExtractoMovementsTable({
   movements,
@@ -28,6 +38,7 @@ export function ExtractoMovementsTable({
   const { terceros, cuentasContables, subTiposDocumento } = useCatalogos()
   const [rows, setRows] = useState<ExtractoMovement[] | null>(movements)
   const [lastMovements, setLastMovements] = useState(movements)
+  const [carteraTarget, setCarteraTarget] = useState<ExtractoMovement | null>(null)
 
   // Reset local edits whenever a fresh `movements` prop arrives, by adjusting
   // state during render instead of an Effect (React's recommended pattern for
@@ -53,19 +64,19 @@ export function ExtractoMovementsTable({
   }
 
   return (
-    <Card className="w-full">
+    <TooltipProvider>
+      <Card className="w-full">
       <CardContent>
         <Table containerClassName="max-h-[32rem] overflow-y-auto">
           <TableHeader className="sticky top-0 z-10 bg-card">
             <TableRow>
               <TableHead>Fecha</TableHead>
               <TableHead>Descripción</TableHead>
-              <TableHead>Detalle</TableHead>
               <TableHead className="text-right">Débito</TableHead>
               <TableHead className="text-right">Crédito</TableHead>
               <TableHead>NIT Tercero</TableHead>
               <TableHead>Nombre Tercero</TableHead>
-              <TableHead>Tipo Movimiento</TableHead>
+              <TableHead></TableHead>
               <TableHead>Subtipo Documento</TableHead>
               <TableHead>Cuenta Contable</TableHead>
             </TableRow>
@@ -100,15 +111,15 @@ export function ExtractoMovementsTable({
                 <TableRow key={movement.idRegistroExtracto}>
                   <TableCell>{movement.fechaMovimiento}</TableCell>
                   <TableCell>{movement.descripcionMovimiento ?? "-"}</TableCell>
-                  <TableCell>{movement.detalleMovimiento ?? "-"}</TableCell>
-                  <TableCell className="text-right">{movement.debito}</TableCell>
-                  <TableCell className="text-right">{movement.credito}</TableCell>
+                  <TableCell className="text-right">{formatCurrency(movement.debito)}</TableCell>
+                  <TableCell className="text-right">{formatCurrency(movement.credito)}</TableCell>
                   <TableCell>
                     <CatalogCombobox
                       items={terceros.items}
                       loading={terceros.loading}
                       value={movement.nitTercero}
                       placeholder="Buscar tercero..."
+                      triggerDisplay="code"
                       onSelect={(item) =>
                         updateMovement(movement.idRegistroExtracto, {
                           nitTercero: item.codigo,
@@ -118,7 +129,24 @@ export function ExtractoMovementsTable({
                     />
                   </TableCell>
                   <TableCell>{movement.nombreTercero ?? "-"}</TableCell>
-                  <TableCell>{movement.tipoMovimiento ?? "-"}</TableCell>
+                  <TableCell>
+                    <Tooltip>
+                      <TooltipTrigger
+                        render={
+                          <Button
+                            variant="default"
+                            size="icon-sm"
+                            disabled={!movement.nitTercero}
+                            onClick={() => setCarteraTarget(movement)}
+                          >
+                            <Receipt />
+                            <span className="sr-only">Seleccionar Facturas</span>
+                          </Button>
+                        }
+                      />
+                      <TooltipContent>Seleccionar Facturas</TooltipContent>
+                    </Tooltip>
+                  </TableCell>
                   <TableCell>
                     <CatalogCombobox
                       items={subTiposDocumento.items}
@@ -151,6 +179,18 @@ export function ExtractoMovementsTable({
           </TableBody>
         </Table>
       </CardContent>
-    </Card>
+      {carteraTarget && (
+        <CarteraSelectionForm
+          nitTercero={carteraTarget.nitTercero!}
+          nombreTercero={carteraTarget.nombreTercero}
+          creditoMovimiento={carteraTarget.credito}
+          open={carteraTarget !== null}
+          onOpenChange={(open) => {
+            if (!open) setCarteraTarget(null)
+          }}
+        />
+      )}
+      </Card>
+    </TooltipProvider>
   )
 }

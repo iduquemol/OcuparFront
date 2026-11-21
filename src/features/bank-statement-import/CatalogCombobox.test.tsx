@@ -18,6 +18,21 @@ describe("CatalogCombobox", () => {
     expect(screen.getByText("800186061 — MOVISTAR")).toBeInTheDocument()
   })
 
+  it("shows only the code when triggerDisplay is 'code'", () => {
+    render(
+      <CatalogCombobox
+        items={items}
+        loading={false}
+        value="800186061"
+        onSelect={vi.fn()}
+        triggerDisplay="code"
+      />
+    )
+
+    expect(screen.getByText("800186061")).toBeInTheDocument()
+    expect(screen.queryByText("800186061 — MOVISTAR")).not.toBeInTheDocument()
+  })
+
   it("filters options by name or code as the user types", async () => {
     const user = userEvent.setup()
     render(<CatalogCombobox items={items} loading={false} value={null} onSelect={vi.fn()} />)
